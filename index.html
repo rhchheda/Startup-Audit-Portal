@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLE CTIE — Startup Audit Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --blue:#1F4E79; --mid:#2E75B6; --pale:#DDEBF7; --amber:#FCE5CD; --red:#F4CCCC; --green:#D9EAD3; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#f4f6f9; color:#222; }
+  header { background:var(--blue); color:#fff; padding:14px 22px; display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:1.15rem; flex:1; }
+  .badge { background:var(--mid); padding:3px 10px; border-radius:12px; font-size:.75rem; }
+  button { cursor:pointer; border:none; border-radius:6px; padding:8px 14px; font-size:.85rem; }
+  .btn-light { background:#fff; color:var(--blue); font-weight:600; }
+  .btn-blue { background:var(--mid); color:#fff; }
+  .btn-green { background:#3d8b40; color:#fff; }
+  .btn-red { background:#b3403a; color:#fff; }
+  /* login */
+  #loginView { max-width:360px; margin:10vh auto; background:#fff; padding:30px; border-radius:12px; box-shadow:0 4px 18px rgba(0,0,0,.1); text-align:center; }
+  #loginView input { width:100%; padding:10px; margin:14px 0; border:1px solid #ccc; border-radius:6px; }
+  .err { color:#b3403a; font-size:.85rem; min-height:1.2em; }
+  /* layout */
+  #app { display:none; }
+  nav.tabs { background:#fff; border-bottom:1px solid #ddd; padding:0 22px; display:flex; gap:4px; }
+  nav.tabs button { background:none; border-radius:0; padding:12px 16px; border-bottom:3px solid transparent; color:#555; }
+  nav.tabs button.active { border-color:var(--mid); color:var(--blue); font-weight:600; }
+  main { padding:20px 22px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:20px; }
+  .card { background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .card .num { font-size:1.7rem; font-weight:700; color:var(--blue); }
+  .card .sub { font-size:.78rem; color:#666; margin-top:4px; }
+  .charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
+  .chartbox { background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .chartbox h3 { font-size:.9rem; color:var(--blue); margin-bottom:10px; }
+  /* startups */
+  .split { display:grid; grid-template-columns:300px 1fr; gap:18px; }
+  #startupList { background:#fff; border-radius:10px; max-height:75vh; overflow-y:auto; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  #startupList input { width:calc(100% - 20px); margin:10px; padding:8px; border:1px solid #ccc; border-radius:6px; }
+  #startupList li { list-style:none; padding:10px 14px; border-bottom:1px solid #f0f0f0; cursor:pointer; font-size:.85rem; }
+  #startupList li:hover, #startupList li.sel { background:var(--pale); }
+  #detail { background:#fff; border-radius:10px; padding:18px; box-shadow:0 1px 4px rgba(0,0,0,.08); max-height:75vh; overflow-y:auto; }
+  #detail h2 { color:var(--blue); font-size:1.1rem; margin-bottom:4px; }
+  .section-h { background:var(--pale); color:var(--blue); font-weight:600; padding:6px 10px; border-radius:6px; margin:16px 0 6px; font-size:.85rem; }
+  table.fields { width:100%; border-collapse:collapse; }
+  table.fields td { padding:6px 8px; border-bottom:1px solid #f2f2f2; font-size:.83rem; vertical-align:top; }
+  table.fields td:first-child { width:34%; color:#555; }
+  table.fields textarea { width:100%; min-height:34px; border:1px solid #d8d8d8; border-radius:5px; padding:5px; font:inherit; }
+  .empty-cell { background:var(--amber); border-radius:4px; padding:2px 6px; font-size:.75rem; color:#8a5a00; }
+  .toolbar { display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; }
+  /* findings & pending */
+  table.list { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  table.list th { background:var(--mid); color:#fff; padding:9px 10px; text-align:left; font-size:.8rem; }
+  table.list td { padding:8px 10px; border-bottom:1px solid #f0f0f0; font-size:.8rem; }
+  .pill { padding:2px 8px; border-radius:10px; font-size:.72rem; }
+  .toast { position:fixed; bottom:18px; right:18px; background:var(--blue); color:#fff; padding:12px 18px; border-radius:8px; display:none; z-index:50; }
+  /* founder */
+  #founderView { max-width:640px; margin:5vh auto; background:#fff; border-radius:12px; padding:28px; box-shadow:0 4px 18px rgba(0,0,0,.1); display:none; }
+  @media (max-width:820px){ .split{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KLE CTIE — Startup Audit Portal</h1>
+  <span class="badge" id="roleBadge" style="display:none"></span>
+  <button class="btn-light" id="logoutBtn" style="display:none" onclick="logout()">Logout</button>
+</header>
+
+<!-- LOGIN -->
+<div id="loginView">
+  <h2 style="color:var(--blue)">Sign in</h2>
+  <p style="font-size:.85rem;color:#666;margin-top:6px">Enter the viewer or admin password</p>
+  <input type="password" id="pw" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
+  <div class="err" id="loginErr"></div>
+  <button class="btn-blue" style="width:100%" onclick="login()">Login</button>
+</div>
+
+<!-- FOUNDER TOKEN FORM -->
+<div id="founderView"></div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="tabs">
+    <button id="tab-dash" class="active" onclick="showTab('dash')">Dashboard</button>
+    <button id="tab-startups" onclick="showTab('startups')">Startups</button>
+    <button id="tab-findings" onclick="showTab('findings')">Audit Findings</button>
+    <button id="tab-pending" style="display:none" onclick="showTab('pending')">Pending Submissions</button>
+  </nav>
+  <main>
+    <div id="view-dash"><div class="cards" id="cards"></div><div class="charts" id="charts"></div></div>
+    <div id="view-startups" style="display:none">
+      <div class="toolbar" id="adminToolbar" style="display:none">
+        <button class="btn-blue" onclick="addStartup()">+ Add Startup</button>
+      </div>
+      <div class="split">
+        <div id="startupList"><input id="search" placeholder="Search startups…" oninput="renderList()"><ul id="slist"></ul></div>
+        <div id="detail"><p style="color:#888">Select a startup to view its complete audit record.</p></div>
+      </div>
+    </div>
+    <div id="view-findings" style="display:none"></div>
+    <div id="view-pending" style="display:none"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ======================= CONFIG =======================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxAPAiR3VE4Y5DV62k_cz5YjSMkLgp-SIgqSDw_xI88MTSMBtyIQ4A6wZUo2yrbuUYSLA/exec';   // deploy Code.gs as Web App (execute as Me, access: Anyone)
+const PORTAL_URL = location.origin + location.pathname;
+
+let session = { token: sessionStorage.getItem('pat'), role: sessionStorage.getItem('par') };
+let startups = [], currentCol = null, currentFields = [];
+
+// ======================= HELPERS =======================
+async function apiGet(params) {
+  const q = new URLSearchParams(params); if (session.token) q.set('token', session.token);
+  const res = await fetch(GAS_URL + '?' + q.toString());
+  const data = await res.json();
+  if (data.error === 'SESSION_EXPIRED') { hardLogout('Session expired — please log in again.'); throw new Error('expired'); }
+  return data;
+}
+async function apiPost(body) {
+  body.token = session.token;
+  const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (data.error === 'SESSION_EXPIRED') { hardLogout('Session expired — please log in again.'); throw new Error('expired'); }
+  return data;
+}
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3200); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+// ======================= AUTH =======================
+async function login() {
+  const pw = document.getElementById('pw').value;
+  const r = await (await fetch(GAS_URL + '?action=login&password=' + encodeURIComponent(pw))).json();
+  if (!r.success) { document.getElementById('loginErr').textContent = r.error; return; }
+  session = { token: r.token, role: r.role };
+  sessionStorage.setItem('pat', r.token); sessionStorage.setItem('par', r.role);
+  enterApp();
+}
+async function logout() { try { await apiGet({ action: 'logout' }); } catch (e) {} hardLogout(); }
+function hardLogout(msg) {
+  sessionStorage.clear(); session = { token: null, role: null };
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginView').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('roleBadge').style.display = 'none';
+  if (msg) document.getElementById('loginErr').textContent = msg;
+}
+function enterApp() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('logoutBtn').style.display = 'inline-block';
+  const b = document.getElementById('roleBadge'); b.style.display = 'inline-block';
+  b.textContent = session.role === 'admin' ? 'ADMIN' : 'VIEWER';
+  if (session.role === 'admin') { document.getElementById('tab-pending').style.display = 'inline-block'; document.getElementById('adminToolbar').style.display = 'flex'; }
+  loadDashboard(); loadStartups();
+}
+
+// ======================= TABS =======================
+function showTab(t) {
+  ['dash','startups','findings','pending'].forEach(x => {
+    document.getElementById('view-' + x).style.display = x === t ? 'block' : 'none';
+    const btn = document.getElementById('tab-' + x); if (btn) btn.classList.toggle('active', x === t);
+  });
+  if (t === 'findings') loadFindings();
+  if (t === 'pending') loadPending();
+}
+
+// ======================= DASHBOARD =======================
+let chartRefs = [];
+async function loadDashboard() {
+  const r = await apiGet({ action: 'getDashboard' }); if (!r.success) return;
+  const d = r.dashboard;
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="num">${d.totalStartups}</div><div class="sub">Total Startups</div></div>
+    <div class="card"><div class="num">${d.fundsLakhs.sanctioned.toFixed(2)} L</div><div class="sub">Total Sanctioned</div></div>
+    <div class="card"><div class="num">${d.fundsLakhs.disbursed.toFixed(2)} L</div><div class="sub">Total Disbursed</div></div>
+    <div class="card"><div class="num">${d.fundsLakhs.ucCertified.toFixed(2)} L</div><div class="sub">UC-certified Utilization</div></div>
+    <div class="card"><div class="num">${d.agreement.Y} / ${d.agreement.N}</div><div class="sub">Agreements Y / N (${d.agreement.blank} unverified)</div></div>
+    <div class="card"><div class="num">${d.sanctionLetter.Y}</div><div class="sub">Sanction Letters on file</div></div>`;
+  document.getElementById('charts').innerHTML = `
+    <div class="chartbox"><h3>Scheme distribution</h3><canvas id="c1"></canvas></div>
+    <div class="chartbox"><h3>UC status</h3><canvas id="c2"></canvas></div>
+    <div class="chartbox"><h3>Agreement availability</h3><canvas id="c3"></canvas></div>`;
+  chartRefs.forEach(c => c.destroy()); chartRefs = [];
+  const palette = ['#1F4E79','#2E75B6','#7FB3D5','#F5B041','#58A65C','#B3403A','#8E7CC3','#999'];
+  chartRefs.push(new Chart(c1, { type: 'doughnut', data: { labels: Object.keys(d.schemes), datasets: [{ data: Object.values(d.schemes), backgroundColor: palette }] } }));
+  chartRefs.push(new Chart(c2, { type: 'pie', data: { labels: ['CA-certified', 'Pending / issue', 'Blank'], datasets: [{ data: [d.ucStatus.certified, d.ucStatus.pendingOrIssue, d.ucStatus.blank], backgroundColor: ['#58A65C','#F5B041','#B3403A'] }] } }));
+  chartRefs.push(new Chart(c3, { type: 'bar', data: { labels: ['Yes', 'No', 'Unverified'], datasets: [{ label: 'Startups', data: [d.agreement.Y, d.agreement.N, d.agreement.blank], backgroundColor: ['#58A65C','#B3403A','#999'] }] }, options: { plugins: { legend: { display: false } } } }));
+}
+
+// ======================= STARTUP LIST / DETAIL =======================
+async function loadStartups() {
+  const r = await apiGet({ action: 'getStartups' }); if (!r.success) return;
+  startups = r.startups; renderList();
+}
+function renderList() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  document.getElementById('slist').innerHTML = startups
+    .filter(s => s.name.toLowerCase().includes(q))
+    .map(s => `<li class="${s.col === currentCol ? 'sel' : ''}" onclick="openStartup(${s.col})">${esc(s.name)}</li>`).join('');
+}
+async function openStartup(col) {
+  currentCol = col; renderList();
+  document.getElementById('detail').innerHTML = '<p style="color:#888">Loading…</p>';
+  const r = await apiGet({ action: 'getStartup', col: col }); if (!r.success) return;
+  currentFields = r.fields;
+  const isAdmin = session.role === 'admin';
+  let html = `<h2>${esc(r.name)}</h2>`;
+  if (isAdmin) html += `<div class="toolbar">
+      <button class="btn-green" onclick="saveEdits()">💾 Save changes</button>
+      <button class="btn-blue" onclick="requestMissing(${col}, '${esc(r.name).replace(/'/g, "\\'")}')">✉ Request missing data (tokenized link)</button>
+    </div>`;
+  let section = '';
+  html += '<table class="fields">';
+  r.fields.forEach(f => {
+    if (f.section !== section) { section = f.section; html += `</table><div class="section-h">${esc(section)}</div><table class="fields">`; }
+    let valCell;
+    if (f.isLink && f.link) valCell = `<a href="${esc(f.link)}" target="_blank" rel="noopener">${esc(f.value || 'Open')}</a>`;
+    else if (isAdmin && !f.isLink) valCell = `<textarea data-row="${f.row}">${esc(f.value)}</textarea>`;
+    else valCell = f.value ? esc(f.value) : '<span class="empty-cell">missing</span>';
+    html += `<tr><td>${esc(f.label)}</td><td>${valCell}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('detail').innerHTML = html;
+}
+
+// ======================= ADMIN CRUD =======================
+async function saveEdits() {
+  const updates = [];
+  document.querySelectorAll('#detail textarea').forEach(t => {
+    const row = parseInt(t.dataset.row, 10);
+    const orig = currentFields.find(f => f.row === row);
+    if (orig && t.value !== orig.value) updates.push({ row: row, value: t.value });
+  });
+  if (!updates.length) { toast('No changes to save'); return; }
+  const r = await apiPost({ action: 'updateCells', col: currentCol, updates: updates });
+  toast(r.success ? `Saved ${r.updated} field(s)` : 'Error: ' + r.error);
+  if (r.success) openStartup(currentCol);
+}
+async function addStartup() {
+  const name = prompt('New startup name:'); if (!name) return;
+  const r = await apiPost({ action: 'addStartup', name: name });
+  if (r.success) { toast('Added ' + name); loadStartups(); openStartup(r.col); } else toast('Error: ' + r.error);
+}
+async function requestMissing(col, name) {
+  const email = prompt(`Founder email for "${name}" (leave blank to only copy the link):`) || '';
+  const r = await apiPost({ action: 'generateToken', col: col, email: email, portalUrl: PORTAL_URL });
+  if (!r.success) { toast('Error: ' + r.error); return; }
+  try { await navigator.clipboard.writeText(r.link); } catch (e) {}
+  toast((email ? 'Email sent & link copied' : 'Tokenized link copied') + ' — valid 7 days');
+}
+
+// ======================= FINDINGS =======================
+async function loadFindings() {
+  const v = document.getElementById('view-findings');
+  v.innerHTML = '<p style="color:#888">Loading…</p>';
+  const r = await apiGet({ action: 'getAuditFindings' }); if (!r.success) return;
+  v.innerHTML = `<table class="list"><tr><th>#</th><th>Startup</th><th>Col</th><th>Field</th><th>Issue / Action</th></tr>` +
+    r.findings.map((f, i) => `<tr><td>${i + 1}</td><td>${esc(f.startup)}</td><td>${esc(f.column)}</td><td>${esc(f.field)}</td><td>${esc(f.issue)}</td></tr>`).join('') + '</table>';
+}
+
+// ======================= PENDING SUBMISSIONS (admin) =======================
+async function loadPending() {
+  const v = document.getElementById('view-pending');
+  v.innerHTML = '<p style="color:#888">Loading…</p>';
+  const r = await apiGet({ action: 'getPending' }); if (!r.success) return;
+  if (!r.pending.length) { v.innerHTML = '<p style="color:#666">No pending founder submissions. 🎉</p>'; return; }
+  v.innerHTML = `<table class="list"><tr><th>Startup</th><th>Field</th><th>Submitted value</th><th>When</th><th>Action</th></tr>` +
+    r.pending.map(p => `<tr><td>${esc(p.startup)}</td><td>${esc(p.field)}</td><td>${esc(p.value)}</td><td>${esc(String(p.when).slice(0, 21))}</td>
+      <td><button class="btn-green" onclick="review(${p.pendingRow}, 'approve')">Approve</button>
+          <button class="btn-red" onclick="review(${p.pendingRow}, 'reject')">Reject</button></td></tr>`).join('') + '</table>';
+}
+async function review(row, decision) {
+  const r = await apiPost({ action: 'reviewSubmission', pendingRow: row, decision: decision });
+  toast(r.success ? 'Submission ' + decision + 'd' : 'Error: ' + r.error);
+  loadPending();
+}
+
+// ======================= FOUNDER TOKEN MODE =======================
+async function founderMode(ftoken) {
+  document.getElementById('loginView').style.display = 'none';
+  const v = document.getElementById('founderView');
+  v.style.display = 'block';
+  v.innerHTML = '<p style="color:#888">Loading your form…</p>';
+  const r = await (await fetch(GAS_URL + '?action=founderForm&ftoken=' + encodeURIComponent(ftoken))).json();
+  if (!r.success) { v.innerHTML = `<h2 style="color:#b3403a">Link problem</h2><p>${esc(r.error)}</p>`; return; }
+  if (!r.fields.length) { v.innerHTML = `<h2 style="color:var(--blue)">${esc(r.startup)}</h2><p>No pending fields — everything is up to date. Thank you!</p>`; return; }
+  v.innerHTML = `<h2 style="color:var(--blue)">${esc(r.startup)}</h2>
+    <p style="font-size:.85rem;color:#666;margin:8px 0 16px">KLE-CTIE has requested the following missing details. Fill what you can and submit — your entries will be reviewed before being added to the audit records.</p>
+    <table class="fields">` +
+    r.fields.map(f => `<tr><td>${esc(f.label)}</td><td><textarea data-row="${f.row}" data-field="${esc(f.label)}"></textarea></td></tr>`).join('') +
+    `</table><br><button class="btn-green" onclick="founderSubmit('${esc(ftoken)}')">Submit to KLE-CTIE</button><div class="err" id="fmsg" style="margin-top:10px"></div>`;
+}
+async function founderSubmit(ftoken) {
+  const entries = [];
+  document.querySelectorAll('#founderView textarea').forEach(t => {
+    if (t.value.trim()) entries.push({ row: parseInt(t.dataset.row, 10), field: t.dataset.field, value: t.value.trim() });
+  });
+  if (!entries.length) { document.getElementById('fmsg').textContent = 'Please fill at least one field.'; return; }
+  const r = await (await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'submitFounderData', ftoken: ftoken, entries: entries }) })).json();
+  document.getElementById('founderView').innerHTML = r.success
+    ? `<h2 style="color:#3d8b40">✔ Submitted</h2><p>${esc(r.message)}</p>`
+    : `<h2 style="color:#b3403a">Error</h2><p>${esc(r.error)}</p>`;
+}
+
+// ======================= BOOT =======================
+const ftoken = new URLSearchParams(location.search).get('ftoken');
+if (ftoken) founderMode(ftoken);
+else if (session.token) enterApp();
+</script>
+</body>
+</html>
