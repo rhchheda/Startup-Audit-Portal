@@ -29,11 +29,15 @@
   nav.tabs button.active { border-color:var(--gold); color:var(--blue); font-weight:600; }
   main { padding:20px 22px; }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:20px; }
-  .card { background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-top:3px solid var(--gold); }
-  .card .num { font-size:1.7rem; font-weight:700; color:var(--blue); }
-  .card .sub { font-size:.78rem; color:#666; margin-top:4px; }
-  .card.kpi-rate .num { color:var(--gold); }
-  .cards.small .card .num { font-size:1.25rem; }
+  .card { background:#fff; border-radius:10px; padding:15px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-top:4px solid var(--accent,var(--gold)); position:relative; }
+  .card .num { font-size:1.7rem; font-weight:700; color:var(--accent,var(--blue)); }
+  .card .sub { font-size:.76rem; color:#5a6472; margin-top:4px; line-height:1.25; }
+  .card .ico { position:absolute; top:12px; right:14px; font-size:1.1rem; opacity:.35; }
+  .cards.small .card .num { font-size:1.3rem; }
+  /* professional distinguishable KPI accent palette */
+  .a-navy{--accent:#0B1F3A} .a-gold{--accent:#B8901F} .a-teal{--accent:#0E7C7B}
+  .a-green{--accent:#2E7D46} .a-blue{--accent:#2464A6} .a-purple{--accent:#6A4C93}
+  .a-amber{--accent:#D98C0A} .a-red{--accent:#B3403A} .a-slate{--accent:#5A6B87} .a-magenta{--accent:#9B2D6F}
   .charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
   .chartbox { background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
   .chartbox h3 { font-size:.9rem; color:var(--blue); margin-bottom:10px; }
@@ -201,23 +205,26 @@ function fmtMoney(l) { return l >= 100 ? (l / 100).toFixed(2) + ' Cr' : (l || 0)
 async function loadDashboard() {
   const r = await apiGet({ action: 'getDashboard' }); if (!r.success) return;
   const d = r.dashboard, rt = d.rates || {}, im = d.impact || {};
-  document.getElementById('cards').innerHTML = `
-    <div class="card"><div class="num">${d.totalStartups}</div><div class="sub">Portfolio Startups</div></div>
-    <div class="card"><div class="num">${fmtMoney(d.fundsLakhs.sanctioned)}</div><div class="sub">Total Sanctioned</div></div>
-    <div class="card"><div class="num">${fmtMoney(d.fundsLakhs.disbursed)}</div><div class="sub">Total Disbursed</div></div>
-    <div class="card"><div class="num">${fmtMoney(d.fundsLakhs.ucCertified)}</div><div class="sub">UC-certified Utilization</div></div>
-    <div class="card kpi-rate"><div class="num">${(rt.disbursement || 0).toFixed(1)}%</div><div class="sub">Disbursement Rate (disbursed ÷ sanctioned)</div></div>
-    <div class="card kpi-rate"><div class="num">${(rt.utilization || 0).toFixed(1)}%</div><div class="sub">Utilization Rate (UC ÷ disbursed)</div></div>`;
-  document.getElementById('cards2').innerHTML = `
-    <div class="card"><div class="num">${(rt.ucCompliance || 0).toFixed(0)}%</div><div class="sub">UC Compliance (startups with certified UC)</div></div>
-    <div class="card"><div class="num">${(rt.agrCompliance || 0).toFixed(0)}%</div><div class="sub">Agreement Compliance (${d.agreement.Y} Y / ${d.agreement.N} N, ${d.agreement.blank} unverified)</div></div>
-    <div class="card"><div class="num">${(rt.docsCompliance || 0).toFixed(0)}%</div><div class="sub">Project Report Submissions (${d.docsSubmitted}/${d.totalStartups})</div></div>
-    <div class="card"><div class="num">${d.sanctionLetter.Y}</div><div class="sub">Sanction Letters on file</div></div>
-    <div class="card"><div class="num">${im.employment || 0}</div><div class="sub">Jobs Generated (reported)</div></div>
-    <div class="card"><div class="num">${im.womenLed || 0}</div><div class="sub">Women-supported Startups</div></div>
-    <div class="card"><div class="num">${im.patents || 0}</div><div class="sub">Startups with Patents / IP</div></div>
-    <div class="card"><div class="num">${fmtMoney(im.revenueLakhs || 0)}</div><div class="sub">Revenue Reported (${im.revenueReportedBy || 0} startups)</div></div>
-    <div class="card"><div class="num">${d.openFindings}</div><div class="sub">Open Audit Findings</div></div>`;
+  const dp = d.dpiit || { registered: 0, pct: 0 };
+  const card = (cls, ico, num, sub) => `<div class="card ${cls}"><span class="ico">${ico}</span><div class="num">${num}</div><div class="sub">${sub}</div></div>`;
+  document.getElementById('cards').innerHTML =
+    card('a-navy', '🏢', d.totalStartups, 'Portfolio Startups') +
+    card('a-gold', '₹', fmtMoney(d.fundsLakhs.sanctioned), 'Total Sanctioned') +
+    card('a-gold', '₹', fmtMoney(d.fundsLakhs.disbursed), 'Total Disbursed') +
+    card('a-gold', '₹', fmtMoney(d.fundsLakhs.ucCertified), 'UC-certified Utilization') +
+    card('a-teal', '📊', (rt.disbursement || 0).toFixed(1) + '%', 'Disbursement Rate (disbursed ÷ sanctioned)') +
+    card('a-teal', '📈', (rt.utilization || 0).toFixed(1) + '%', 'Utilization Rate (UC ÷ disbursed)');
+  document.getElementById('cards2').innerHTML =
+    card('a-green', '✅', (rt.ucCompliance || 0).toFixed(0) + '%', 'UC Compliance (certified UC on file)') +
+    card('a-green', '📝', (rt.agrCompliance || 0).toFixed(0) + '%', `Agreement Compliance (${d.agreement.Y}Y / ${d.agreement.N}N, ${d.agreement.blank} unverified)`) +
+    card('a-green', '📄', (rt.docsCompliance || 0).toFixed(0) + '%', `Project Report Submissions (${d.docsSubmitted}/${d.totalStartups})`) +
+    card('a-blue', '🎖️', `${dp.registered} · ${dp.pct.toFixed(0)}%`, 'DPIIT-registered Startups') +
+    card('a-slate', '📑', d.sanctionLetter.Y, 'Sanction Letters on file') +
+    card('a-purple', '👥', im.employment || 0, 'Jobs Generated (reported)') +
+    card('a-magenta', '♀', im.womenLed || 0, 'Women-supported Startups') +
+    card('a-amber', '💡', im.patents || 0, 'Startups with Patents / IP') +
+    card('a-navy', '₹', fmtMoney(im.revenueLakhs || 0), `Revenue Reported (${im.revenueReportedBy || 0} startups)`) +
+    card('a-red', '⚠️', d.openFindings, 'Open Audit Findings');
   document.getElementById('charts').innerHTML = `
     <div class="chartbox"><h3>Scheme distribution</h3><canvas id="c1"></canvas></div>
     <div class="chartbox"><h3>UC status</h3><canvas id="c2"></canvas></div>
@@ -312,11 +319,17 @@ async function addStartup() {
   if (r.success) { toast('Added ' + name); loadStartups(); openStartup(r.col); } else toast('Error: ' + r.error);
 }
 async function requestMissing(col, name) {
-  const email = prompt(`Founder email for "${name}" (leave blank to only copy the link):`) || '';
+  const email = (prompt(`Founder email for "${name}"?\n\nLeave BLANK if they have no email — you'll get a link to copy or share on WhatsApp.`) || '').trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('That does not look like a valid email'); return; }
   const r = await apiPost({ action: 'generateToken', col: col, email: email, portalUrl: PORTAL_URL });
   if (!r.success) { toast('Error: ' + r.error); return; }
   try { await navigator.clipboard.writeText(r.link); } catch (e) {}
-  toast((email ? 'Email sent & link copied' : 'Tokenized link copied') + ' — valid 7 days');
+  if (email) { toast('✉ Email sent to ' + email + ' & link copied (valid 7 days)'); return; }
+  // no email: offer WhatsApp share
+  const msg = encodeURIComponent(`KLE-CTIE: Please submit the missing details for ${name} using this secure link (valid 7 days): ${r.link}`);
+  if (confirm('Link copied to clipboard (valid 7 days).\n\nOpen WhatsApp to share it now?')) {
+    window.open('https://wa.me/?text=' + msg, '_blank');
+  }
 }
 
 // ======================= FINDINGS =======================
@@ -355,22 +368,57 @@ async function founderMode(ftoken) {
   if (!r.success) { v.innerHTML = `<h2 style="color:#b3403a">Link problem</h2><p>${esc(r.error)}</p>`; return; }
   if (!r.fields.length) { v.innerHTML = `<h2 style="color:var(--blue)">${esc(r.startup)}</h2><p>No pending fields — everything is up to date. Thank you!</p>`; return; }
   v.innerHTML = `<h2 style="color:var(--blue)">${esc(r.startup)}</h2>
-    <p style="font-size:.85rem;color:#666;margin:8px 0 16px">KLE-CTIE has requested the following missing details. Fill what you can and submit — your entries will be reviewed before being added to the audit records.</p>
+    <p style="font-size:.85rem;color:#666;margin:8px 0 16px">KLE-CTIE has requested the following details. Fill what you can and submit — your entries will be reviewed before being added to the records.</p>
     <table class="fields">` +
-    r.fields.map(f => `<tr><td>${esc(f.label)}</td><td><textarea data-row="${f.row}" data-field="${esc(f.label)}"></textarea></td></tr>`).join('') +
+    r.fields.map(f => `<tr><td>${esc(f.label)}<div style="font-size:.68rem;color:#999">${fieldHint(f.type)}</div></td>
+      <td>${fieldInput(f)}<div class="err fielderr" style="font-size:.72rem"></div></td></tr>`).join('') +
     `</table><br><button class="btn-green" onclick="founderSubmit('${esc(ftoken)}')">Submit to KLE-CTIE</button><div class="err" id="fmsg" style="margin-top:10px"></div>`;
 }
+function fieldHint(t) {
+  return { yesno:'Y or N', money:'e.g. 7.00 L or 500000', date:'e.g. 05-Feb-2024', url:'https://…',
+           contact:'email or phone', dpiit:'e.g. DIPP146064', text:'' }[t] || '';
+}
+function fieldInput(f) {
+  const a = `data-row="${f.row}" data-type="${f.type}" data-field="${esc(f.label)}" oninput="validateFounderField(this)"`;
+  if (f.type === 'yesno') return `<select ${a}><option value="">—</option><option>Y</option><option>N</option></select>`;
+  if (f.type === 'money') return `<input type="text" inputmode="decimal" placeholder="7.00 L" ${a}>`;
+  if (f.type === 'url')   return `<input type="url" placeholder="https://" ${a}>`;
+  if (f.type === 'contact') return `<input type="text" placeholder="name@email.com / 98xxxxxxxx" ${a}>`;
+  return `<textarea ${a}></textarea>`;
+}
+function validateFounderField(el) {
+  const err = clientValidate(el.dataset.type, el.value);
+  const box = el.parentElement.querySelector('.fielderr');
+  if (box) box.textContent = err;
+  el.style.borderColor = err && el.value.trim() ? '#b3403a' : '#d8d8d8';
+  return err;
+}
+function clientValidate(type, value) {
+  const v = (value || '').trim(); if (!v) return '';
+  if (type === 'yesno')   return /^(y|n|yes|no)$/i.test(v) ? '' : 'Enter Y or N';
+  if (type === 'money')   return /^(rs\.?\s*)?\d[\d,]*(\.\d+)?\s*(l|lakh|lakhs|cr|crore)?$/i.test(v) ? '' : 'e.g. 7.00 L or 500000';
+  if (type === 'url')     return /^(https?:\/\/|www\.)/i.test(v) || /\.[a-z]{2,}/i.test(v) ? '' : 'Enter a valid link';
+  if (type === 'contact') return /@/.test(v) || /\d{6,}/.test(v) ? '' : 'Enter an email or phone';
+  if (type === 'dpiit')   return /dipp\s*\d+/i.test(v) ? '' : 'e.g. DIPP146064';
+  if (type === 'date')    return v.length >= 4 ? '' : 'e.g. 05-Feb-2024';
+  return v.length >= 2 ? '' : 'A little more detail, please';
+}
 async function founderSubmit(ftoken) {
-  const entries = [];
-  document.querySelectorAll('#founderView textarea').forEach(t => {
-    if (t.value.trim()) entries.push({ row: parseInt(t.dataset.row, 10), field: t.dataset.field, value: t.value.trim() });
+  const entries = []; let firstErr = '';
+  document.querySelectorAll('#founderView [data-row]').forEach(t => {
+    const val = (t.value || '').trim(); if (!val) return;
+    const err = validateFounderField(t); if (err && !firstErr) firstErr = t.dataset.field + ': ' + err;
+    entries.push({ row: parseInt(t.dataset.row, 10), field: t.dataset.field, value: val });
   });
-  if (!entries.length) { document.getElementById('fmsg').textContent = 'Please fill at least one field.'; return; }
+  const msg = document.getElementById('fmsg');
+  if (!entries.length) { msg.textContent = 'Please fill at least one field.'; return; }
+  if (firstErr) { msg.textContent = 'Please fix — ' + firstErr; return; }
+  msg.textContent = 'Submitting…';
   const r = await (await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action: 'submitFounderData', ftoken: ftoken, entries: entries }) })).json();
   document.getElementById('founderView').innerHTML = r.success
     ? `<h2 style="color:#3d8b40">✔ Submitted</h2><p>${esc(r.message)}</p>`
-    : `<h2 style="color:#b3403a">Error</h2><p>${esc(r.error)}</p>`;
+    : `<h2 style="color:#b3403a">Almost there</h2><p>${esc(r.error)}</p><button class="btn-blue" style="margin-top:12px" onclick="founderMode('${esc(ftoken)}')">Back to form</button>`;
 }
 
 // ======================= BOOT =======================
